@@ -1,11 +1,16 @@
 (() => {
   "use strict";
 
+  const { t, setLang, onChange, applyDOMTranslations } = window.SheetI18n;
+
   const state = {
     printers: [],
     defaultPrinter: "",
+    printersError: false,
     selectedFile: null,
     submitting: false,
+    healthState: "checking", // "checking" | "online" | "offline"
+    activeAlert: null,       // { kind, key, vars, raw }
   };
 
   const els = {
@@ -47,31 +52,107 @@
     return `${val.toFixed(idx === 0 ? 0 : 2)} ${units[idx]}`;
   }
 
-  function showAlert(kind, message) {
+  function translateState(st) {
+    const key = `state_${st || "unknown"}`;
+    return t(key);
+  }
+
+  function translateApiError(payload) {
+    if (payload && payload.error) {
+      const key = `err_${payload.error}`;
+      const translated = t(key);
+      if (translated !== key) return translated;
+    }
+    if (payload && payload.message) return payload.message;
+    return t("err_print_failed");
+  }
+
+  function renderAlert() {
+    if (!state.activeAlert) {
+      els.alertBanner.hidden = true;
+      els.alertBanner.textContent = "";
+      return;
+    }
+    const { kind, key, vars, raw } = state.activeAlert;
     els.alertBanner.className = `alert-banner ${kind}`;
-    els.alertBanner.textContent = message;
+    els.alertBanner.textContent = key ? t(key, vars) : raw;
     els.alertBanner.hidden = false;
   }
 
+  function showAlertKey(kind, key, vars = {}) {
+    state.activeAlert = { kind, key, vars, raw: "" };
+    renderAlert();
+  }
+
+  function showAlertRaw(kind, raw) {
+    state.activeAlert = { kind, key: "", vars: {}, raw };
+    renderAlert();
+  }
+
   function clearAlert() {
-    els.alertBanner.hidden = true;
-    els.alertBanner.textContent = "";
+    state.activeAlert = null;
+    renderAlert();
+  }
+
+  function renderHealth() {
+    if (state.healthState === "online") {
+      els.healthPill.className = "health-pill online";
+      els.healthText.textContent = t("health_online");
+    } else if (state.healthState === "offline") {
+      els.healthPill.className = "health-pill offline";
+      els.healthText.textContent = t("health_offline");
+    } else {
+      els.healthPill.className = "health-pill";
+      els.healthText.textContent = t("health_checking");
+    }
   }
 
   async function checkHealth() {
     try {
       const res = await fetch("/api/health", { cache: "no-store" });
-      if (res.ok) {
-        els.healthPill.className = "health-pill online";
-        els.healthText.textContent = "CUPS Online";
-      } else {
-        els.healthPill.className = "health-pill offline";
-        els.healthText.textContent = "CUPS Offline";
-      }
+      state.healthState = res.ok ? "online" : "offline";
     } catch {
-      els.healthPill.className = "health-pill offline";
-      els.healthText.textContent = "CUPS Offline";
+      state.healthState = "offline";
     }
+    renderHealth();
+  }
+
+  function renderPrinterOptions(preferredSelection) {
+    const currentVal = preferredSelection ?? els.printerSelect.value;
+    els.printerSelect.innerHTML = "";
+
+    if (state.printersError) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = t("printer_unavailable");
+      els.printerSelect.appendChild(opt);
+      els.printerMeta.innerHTML = "";
+      return;
+    }
+
+    if (state.printers.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = t("printer_none");
+      els.printerSelect.appendChild(opt);
+      els.printerMeta.innerHTML = "";
+      return;
+    }
+
+    for (const p of state.printers) {
+      const opt = document.createElement("option");
+      opt.value = p.name;
+      const suffix = p.is_default ? " ★" : "";
+      opt.textContent = `${p.name} (${translateState(p.state)})${suffix}`;
+      els.printerSelect.appendChild(opt);
+    }
+
+    const chosen =
+      state.printers.find((p) => p.name === currentVal)?.name ||
+      state.defaultPrinter ||
+      state.printers[0].name;
+    els.printerSelect.value = chosen;
+    renderPrinterMeta();
   }
 
   function renderPrinterMeta() {
@@ -83,12 +164,12 @@
     const badge = document.createElement("span");
     const st = p.state || "unknown";
     badge.className = `state-badge state-${st}`;
-    badge.textContent = st.toUpperCase();
+    badge.textContent = translateState(st);
     els.printerMeta.appendChild(badge);
 
     if (p.is_default) {
       const defSpan = document.createElement("span");
-      defSpan.textContent = "• System default";
+      defSpan.textContent = t("printer_default_badge");
       els.printerMeta.appendChild(defSpan);
     }
 
@@ -107,50 +188,39 @@
       const res = await fetch("/api/printers", { cache: "no-store" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.message || "Failed to load printers from CUPS");
+        state.printersError = true;
+        renderPrinterOptions("");
+        showAlertRaw("error", translateApiError(data));
+        return;
       }
 
+      state.printersError = false;
       state.printers = Array.isArray(data.printers) ? data.printers : [];
       state.defaultPrinter = data.default || "";
+      renderPrinterOptions(previousSelection);
 
-      els.printerSelect.innerHTML = "";
-
-      if (state.printers.length === 0) {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "No printers registered in CUPS";
-        els.printerSelect.appendChild(opt);
-      } else {
-        for (const p of state.printers) {
-          const opt = document.createElement("option");
-          opt.value = p.name;
-          const suffix = p.is_default ? " ★" : "";
-          opt.textContent = `${p.name} (${p.state})${suffix}`;
-          els.printerSelect.appendChild(opt);
-        }
-
-        const preferred =
-          state.printers.find((p) => p.name === previousSelection)?.name ||
-          state.defaultPrinter ||
-          state.printers[0].name;
-        els.printerSelect.value = preferred;
-      }
-
-      renderPrinterMeta();
       if (showFeedback) {
-        showAlert("success", "Printer list refreshed.");
+        showAlertKey("success", "alert_printers_refreshed");
       }
-    } catch (err) {
-      els.printerSelect.innerHTML = "";
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = "Unavailable";
-      els.printerSelect.appendChild(opt);
-      els.printerMeta.innerHTML = "";
-      showAlert("error", err.message);
+    } catch {
+      state.printersError = true;
+      renderPrinterOptions("");
+      showAlertKey("error", "alert_network_error");
     } finally {
       els.refreshPrintersBtn.disabled = false;
     }
+  }
+
+  function renderFileCard() {
+    const file = state.selectedFile;
+    if (!file) {
+      els.fileCard.hidden = true;
+      return;
+    }
+    els.fileName.textContent = file.name;
+    const mimeLabel = file.type || t("unknown_mime");
+    els.fileDetails.textContent = `${mimeLabel} • ${formatBytes(file.size)}`;
+    els.fileCard.hidden = false;
   }
 
   function setSelectedFile(file) {
@@ -158,14 +228,16 @@
     if (!file) {
       state.selectedFile = null;
       els.fileInput.value = "";
-      els.fileCard.hidden = true;
+      renderFileCard();
       return;
     }
     state.selectedFile = file;
-    els.fileName.textContent = file.name;
-    const mimeLabel = file.type || "unknown type";
-    els.fileDetails.textContent = `${mimeLabel} • ${formatBytes(file.size)}`;
-    els.fileCard.hidden = false;
+    renderFileCard();
+  }
+
+  function renderSubmitButton() {
+    els.submitBtn.disabled = state.submitting;
+    els.submitBtn.textContent = state.submitting ? t("btn_submitting") : t("btn_submit");
   }
 
   function setupDropzone() {
@@ -215,7 +287,7 @@
     clearAlert();
 
     if (!state.selectedFile) {
-      showAlert("warning", "Please select a document to print.");
+      showAlertKey("warning", "alert_select_file");
       return;
     }
 
@@ -232,7 +304,7 @@
     }
 
     state.submitting = true;
-    els.submitBtn.disabled = true;
+    renderSubmitButton();
     els.progressWrap.hidden = false;
     els.progressBar.style.width = "0%";
     els.progressPercent.textContent = "0%";
@@ -250,7 +322,7 @@
 
     xhr.addEventListener("load", () => {
       state.submitting = false;
-      els.submitBtn.disabled = false;
+      renderSubmitButton();
       els.progressWrap.hidden = true;
 
       let payload = {};
@@ -261,26 +333,52 @@
       }
 
       if (xhr.status >= 200 && xhr.status < 300) {
-        const jobInfo = payload.job_id ? ` (${payload.job_id})` : "";
-        showAlert("success", `Print job queued on ${payload.printer}${jobInfo}.`);
+        const jobSuffix = payload.job_id ? ` (${payload.job_id})` : "";
         setSelectedFile(null);
+        showAlertKey("success", "alert_job_queued", {
+          printer: payload.printer || "",
+          job: jobSuffix,
+        });
       } else {
-        showAlert("error", payload.message || "Print job failed.");
+        if (payload && payload.error && t(`err_${payload.error}`) !== `err_${payload.error}`) {
+          showAlertKey("error", `err_${payload.error}`);
+        } else {
+          showAlertRaw("error", translateApiError(payload));
+        }
       }
     });
 
     xhr.addEventListener("error", () => {
       state.submitting = false;
-      els.submitBtn.disabled = false;
+      renderSubmitButton();
       els.progressWrap.hidden = true;
-      showAlert("error", "Network error while sending print job.");
+      showAlertKey("error", "alert_network_error");
     });
 
     xhr.send(formData);
   }
 
+  function setupLanguageButtons() {
+    document.querySelectorAll("[data-lang-btn]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        setLang(btn.getAttribute("data-lang-btn"));
+      });
+    });
+
+    onChange(() => {
+      renderHealth();
+      renderPrinterOptions();
+      renderFileCard();
+      renderSubmitButton();
+      renderAlert();
+    });
+  }
+
   function init() {
+    applyDOMTranslations();
+    setupLanguageButtons();
     setupDropzone();
+
     els.printerSelect.addEventListener("change", renderPrinterMeta);
     els.refreshPrintersBtn.addEventListener("click", () => loadPrinters(true));
     els.pageRangeMode.addEventListener("change", () => {

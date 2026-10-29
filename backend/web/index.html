@@ -126,6 +126,32 @@
       box-shadow: 0 0 8px var(--danger);
     }
 
+    .lang-toggle {
+      display: inline-flex;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 3px;
+      gap: 2px;
+    }
+
+    .lang-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .lang-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
     .card {
       background: var(--bg-card);
       border: 1px solid var(--border);
@@ -446,14 +472,19 @@
         <div class="brand-icon" aria-hidden="true">🖨️</div>
         <div>
           <div class="brand-title">SheetHappens</div>
-          <div class="brand-subtitle" id="brandSubtitle">Universal CUPS Web Print Portal</div>
+          <div class="brand-subtitle" id="brandSubtitle" data-i18n="brand_subtitle">Universal CUPS Web Print Portal</div>
         </div>
       </div>
 
       <div class="topbar-actions">
-        <div class="health-pill" id="healthPill" title="CUPS Server Status">
+        <div class="health-pill" id="healthPill" data-i18n-title="health_tooltip" title="CUPS Server Status">
           <span class="health-dot"></span>
-          <span id="healthText">Checking CUPS…</span>
+          <span id="healthText" data-i18n="health_checking">Checking CUPS…</span>
+        </div>
+
+        <div class="lang-toggle" role="group" data-i18n-aria="lang_aria" aria-label="Switch language">
+          <button type="button" class="lang-btn active" data-lang-btn="en" aria-pressed="true">EN</button>
+          <button type="button" class="lang-btn" data-lang-btn="es" aria-pressed="false">ES</button>
         </div>
       </div>
     </header>
@@ -465,14 +496,14 @@
         <!-- Printer selector -->
         <div class="section">
           <div class="section-header">
-            <label class="field-label" for="printerSelect" id="labelPrinter">Target Printer</label>
+            <label class="field-label" for="printerSelect" id="labelPrinter" data-i18n="label_printer">Target Printer</label>
           </div>
           <div class="printer-row">
-            <select id="printerSelect" name="printer" required aria-label="Target Printer">
-              <option value="">Loading printers…</option>
+            <select id="printerSelect" name="printer" required data-i18n-aria="label_printer" aria-label="Target Printer">
+              <option value="" data-i18n="printer_loading">Loading printers…</option>
             </select>
-            <button type="button" class="btn-icon" id="refreshPrintersBtn" title="Refresh printers list">
-              ↻ <span id="refreshBtnText">Refresh</span>
+            <button type="button" class="btn-icon" id="refreshPrintersBtn" data-i18n-title="refresh_tooltip" title="Refresh printers list">
+              ↻ <span id="refreshBtnText" data-i18n="refresh_btn">Refresh</span>
             </button>
           </div>
           <div class="printer-meta" id="printerMeta"></div>
@@ -480,11 +511,11 @@
 
         <!-- File upload dropzone -->
         <div class="section">
-          <label class="field-label" id="labelDocument">Document</label>
-          <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload document">
+          <label class="field-label" id="labelDocument" data-i18n="label_document">Document</label>
+          <div class="dropzone" id="dropzone" tabindex="0" role="button" data-i18n-aria="dropzone_aria" aria-label="Upload document">
             <div class="dropzone-icon" aria-hidden="true">📄</div>
-            <div class="dropzone-title" id="dropzoneTitle">Drag &amp; drop your file here, or click to browse</div>
-            <div class="dropzone-hint" id="dropzoneHint">Allowed: PDF, PNG, JPEG, TXT (up to 20 MB)</div>
+            <div class="dropzone-title" id="dropzoneTitle" data-i18n="dropzone_title">Drag &amp; drop your file here, or click to browse</div>
+            <div class="dropzone-hint" id="dropzoneHint" data-i18n="dropzone_hint">Allowed: PDF, PNG, JPEG, TXT (up to 20 MB)</div>
             <input type="file" id="fileInput" name="file" accept=".pdf,.png,.jpg,.jpeg,.txt,application/pdf,image/png,image/jpeg,text/plain" hidden />
           </div>
 
@@ -493,48 +524,48 @@
               <div class="file-name" id="fileName"></div>
               <div class="file-details" id="fileDetails"></div>
             </div>
-            <button type="button" class="btn-clear" id="clearFileBtn">Remove</button>
+            <button type="button" class="btn-clear" id="clearFileBtn" data-i18n="btn_remove_file">Remove</button>
           </div>
         </div>
 
         <!-- Print settings -->
         <div class="grid-options">
           <div>
-            <label class="field-label" for="copiesInput" id="labelCopies">Copies</label>
+            <label class="field-label" for="copiesInput" id="labelCopies" data-i18n="label_copies">Copies</label>
             <input type="number" id="copiesInput" name="copies" min="1" max="99" value="1" required />
           </div>
 
           <div>
-            <label class="field-label" for="colorSelect" id="labelColor">Color Mode</label>
+            <label class="field-label" for="colorSelect" id="labelColor" data-i18n="label_color">Color Mode</label>
             <select id="colorSelect" name="color_mode">
-              <option value="color" id="optColor">Color</option>
-              <option value="monochrome" id="optMono">Grayscale / Monochrome</option>
+              <option value="color" id="optColor" data-i18n="opt_color">Color</option>
+              <option value="monochrome" id="optMono" data-i18n="opt_mono">Grayscale / Monochrome</option>
             </select>
           </div>
 
           <div class="range-group">
-            <label class="field-label" for="pageRangeMode" id="labelPageRange">Page Range</label>
+            <label class="field-label" for="pageRangeMode" id="labelPageRange" data-i18n="label_page_range">Page Range</label>
             <select id="pageRangeMode">
-              <option value="all" id="optPagesAll">All Pages</option>
-              <option value="custom" id="optPagesCustom">Custom Range</option>
+              <option value="all" id="optPagesAll" data-i18n="opt_pages_all">All Pages</option>
+              <option value="custom" id="optPagesCustom" data-i18n="opt_pages_custom">Custom Range</option>
             </select>
-            <input type="text" id="pageRangeInput" name="page_range" placeholder="e.g. 1-3, 5, 8-10" hidden />
+            <input type="text" id="pageRangeInput" name="page_range" data-i18n-placeholder="placeholder_page_range" placeholder="e.g. 1-3, 5, 8-10" hidden />
           </div>
 
           <div>
-            <label class="field-label" for="sidesSelect" id="labelSides">Duplex / Sides</label>
+            <label class="field-label" for="sidesSelect" id="labelSides" data-i18n="label_sides">Duplex / Sides</label>
             <select id="sidesSelect" name="sides">
-              <option value="one-sided" id="optOneSided">One-Sided</option>
-              <option value="two-sided-long-edge" id="optDuplexLong">Two-Sided (Long Edge)</option>
-              <option value="two-sided-short-edge" id="optDuplexShort">Two-Sided (Short Edge)</option>
+              <option value="one-sided" id="optOneSided" data-i18n="opt_one_sided">One-Sided</option>
+              <option value="two-sided-long-edge" id="optDuplexLong" data-i18n="opt_duplex_long">Two-Sided (Long Edge)</option>
+              <option value="two-sided-short-edge" id="optDuplexShort" data-i18n="opt_duplex_short">Two-Sided (Short Edge)</option>
             </select>
           </div>
 
           <div>
-            <label class="field-label" for="orientationSelect" id="labelOrientation">Orientation</label>
+            <label class="field-label" for="orientationSelect" id="labelOrientation" data-i18n="label_orientation">Orientation</label>
             <select id="orientationSelect" name="orientation">
-              <option value="portrait" id="optPortrait">Portrait</option>
-              <option value="landscape" id="optLandscape">Landscape</option>
+              <option value="portrait" id="optPortrait" data-i18n="opt_portrait">Portrait</option>
+              <option value="landscape" id="optLandscape" data-i18n="opt_landscape">Landscape</option>
             </select>
           </div>
         </div>
@@ -542,7 +573,7 @@
         <!-- Upload progress -->
         <div class="progress-wrap" id="progressWrap" hidden>
           <div class="progress-header">
-            <span id="progressLabel">Uploading &amp; spooling…</span>
+            <span id="progressLabel" data-i18n="progress_uploading">Uploading &amp; spooling…</span>
             <span id="progressPercent">0%</span>
           </div>
           <div class="progress-track">
@@ -550,15 +581,16 @@
           </div>
         </div>
 
-        <button type="submit" class="btn-submit" id="submitBtn">Print Document</button>
+        <button type="submit" class="btn-submit" id="submitBtn" data-i18n="btn_submit">Print Document</button>
       </form>
     </main>
 
-    <footer id="footerNote">
+    <footer id="footerNote" data-i18n="footer_note">
       SheetHappens • Powered by CUPS &amp; Go • Multi-Printer Architecture
     </footer>
   </div>
 
+  <script src="/i18n.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
