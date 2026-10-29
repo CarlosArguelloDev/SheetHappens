@@ -41,6 +41,20 @@ RUN apt-get update \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
+# --- Pristine copy of /etc/cups ---------------------------------------------
+# /etc/cups is persisted in a Docker volume. If an empty volume/bind mount is
+# attached, the entrypoint seeds it from this copy.
+RUN cp -a /etc/cups /opt/cups-defaults
+
+# --- SheetHappens configuration ---------------------------------------------
+COPY cupsd.conf    /opt/sheethappens/cupsd.conf
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+
+# Defensive: strip CR characters in case files were checked out with CRLF.
+RUN sed -i 's/\r$//' /opt/sheethappens/cupsd.conf /usr/local/bin/entrypoint.sh \
+ && chmod 0644 /opt/sheethappens/cupsd.conf \
+ && chmod 0755 /usr/local/bin/entrypoint.sh
+
 VOLUME ["/etc/cups"]
 
 EXPOSE 631
@@ -48,5 +62,5 @@ EXPOSE 631
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD lpstat -h localhost:631 -r || exit 1
 
-# Run the scheduler in the foreground so Docker supervises it.
-CMD ["/usr/sbin/cupsd", "-f"]
+# Provisions the admin user, installs cupsd.conf and execs `cupsd -f`.
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
