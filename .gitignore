@@ -1,0 +1,70 @@
+# =========================================================
+# SheetHappens - .gitignore
+# =========================================================
+
+# ---------- Environment & secrets ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+credentials.json
+cert.pem
+
+# ---------- Go build artifacts ----------
+/bin/
+/dist/
+/build/
+backend/bin/
+backend/server
+backend/sheethappens
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.*
+*.coverprofile
+go.work
+go.work.sum
+vendor/
+
+# ---------- Docker overrides ----------
+docker-compose.override.yml
+docker-compose.override.yaml
+compose.override.yml
+compose.override.yaml
+docker-compose.local.yml
+.docker/
+
+# ---------- Temporary print caches / spool ----------
+tmp/
+temp/
+spool/
+uploads/
+print-cache/
+*.prn
+*.pcl
+*.ps.tmp
+
+# ---------- CUPS local state (persisted in Docker volume) ----------
+cups/data/
+cups/config/printers.conf
+cups/config/*.O
+
+# ---------- Logs ----------
+*.log
+logs/
+
+# ---------- Editors / OS ----------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
