@@ -1,0 +1,81 @@
+# =========================================================
+# SheetHappens - Docker Compose Orchestration
+#
+# Services:
+#   - cups        : Multi-driver CUPS scheduler with USB passthrough
+#   - print-api   : Go backend API & bilingual web portal
+#   - cloudflared : Cloudflare Zero Trust Tunnel connector
+# =========================================================
+
+services:
+  cups:
+    build:
+      context: ./cups
+      dockerfile: Dockerfile
+    container_name: sheethappens-cups
+    restart: unless-stopped
+    privileged: true
+    environment:
+      CUPS_ADMIN_USER: ${CUPS_ADMIN_USER:-printadmin}
+      CUPS_ADMIN_PASSWORD: ${CUPS_ADMIN_PASSWORD:-change-me-now}
+    ports:
+      - "631:631"
+    volumes:
+      - cups_data:/etc/cups
+      - /dev/bus/usb:/dev/bus/usb
+      - /var/run/dbus:/var/run/dbus:ro
+    networks:
+      - sheet_net
+    healthcheck:
+      test: ["CMD", "lpstat", "-h", "localhost:631", "-r"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  print-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sheethappens-print-api
+    restart: unless-stopped
+    depends_on:
+      cups:
+        condition: service_healthy
+    environment:
+      PORT: ${PORT:-8080}
+      CUPS_HOST: ${CUPS_HOST:-cups:631}
+      DEFAULT_PRINTER: ${DEFAULT_PRINTER:-}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-20}
+    ports:
+      - "${PORT:-8080}:${PORT:-8080}"
+    networks:
+      - sheet_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:$${PORT:-8080}/api/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: sheethappens-cloudflared
+    restart: unless-stopped
+    depends_on:
+      print-api:
+        condition: service_healthy
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN:-}
+    networks:
+      - sheet_net
+
+volumes:
+  cups_data:
+    name: sheethappens_cups_data
+
+networks:
+  sheet_net:
+    name: sheet_net
+    driver: bridge
